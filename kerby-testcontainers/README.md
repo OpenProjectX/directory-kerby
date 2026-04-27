@@ -7,7 +7,7 @@ Build the image locally:
 
 ```bash
 mvn -Dmaven.repo.local=/home/coder/.m2/repository -Pdist,docker -DskipTests \
-  -Ddocker.image.name=apache/kerby-kdc \
+  -Ddocker.image.name=openprojectx/kerby-kdc \
   -Ddocker.image.tag.sha=test \
   -pl kerby-dist/docker -am package
 ```
@@ -24,7 +24,7 @@ Run the end-to-end Testcontainers test:
 mvn -Dmaven.repo.local=/home/coder/.m2/repository -pl kerby-testcontainers -am \
   -Dtest=KerbyKdcContainerE2ETest \
   -Dsurefire.failIfNoSpecifiedTests=false \
-  -Dkerby.testcontainers.image=apache/kerby-kdc:latest \
+  -Dkerby.testcontainers.image=openprojectx/kerby-kdc:latest \
   test
 ```
 

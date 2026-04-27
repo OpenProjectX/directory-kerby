@@ -71,7 +71,7 @@ test coverage.
 Build the image from the current checkout:
 
 ```bash
-mvn -Pdist,docker -DskipTests -Ddocker.image.name=apache/kerby-kdc \
+mvn -Pdist,docker -DskipTests -Ddocker.image.name=openprojectx/kerby-kdc \
     -Ddocker.image.tag.sha=test -pl kerby-dist/docker -am package
 ```
 

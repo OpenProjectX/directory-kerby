@@ -6,7 +6,7 @@ checkout. Build from the repository root with `-am` so Maven builds the local
 
 ```bash
 mvn -Dmaven.repo.local=/home/coder/.m2/repository -Pdist,docker -DskipTests \
-  -Ddocker.image.name=apache/kerby-kdc \
+  -Ddocker.image.name=openprojectx/kerby-kdc \
   -Ddocker.image.tag.sha=test \
   -pl kerby-dist/docker -am package
 ```

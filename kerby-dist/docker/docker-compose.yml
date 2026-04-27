@@ -16,7 +16,7 @@
 
 services:
   kerby-kdc:
-    image: apache/kerby-kdc:latest
+    image: openprojectx/kerby-kdc:latest
     container_name: kerby-kdc
     ports:
       - "88:88/tcp"

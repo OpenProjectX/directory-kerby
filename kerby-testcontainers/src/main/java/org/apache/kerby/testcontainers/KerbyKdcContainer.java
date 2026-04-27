@@ -32,7 +32,7 @@ import java.util.Map;
  */
 public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
     public static final DockerImageName DEFAULT_IMAGE_NAME =
-        DockerImageName.parse("apache/kerby-kdc:latest");
+        DockerImageName.parse("openprojectx/kerby-kdc:latest");
     public static final int KDC_PORT = 88;
     public static final String DEFAULT_REALM = "EXAMPLE.COM";
     public static final String DEFAULT_CLIENT_PRINCIPAL = "client";

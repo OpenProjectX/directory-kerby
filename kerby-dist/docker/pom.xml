@@ -27,7 +27,7 @@
   <packaging>pom</packaging>
 
   <properties>
-    <docker.image.name>apache/kerby-kdc</docker.image.name>
+    <docker.image.name>openprojectx/kerby-kdc</docker.image.name>
     <docker.image.tag.latest>latest</docker.image.tag.latest>
     <docker.image.tag.sha>dev</docker.image.tag.sha>
     <docker.context.directory>${project.build.directory}/docker-context</docker.context.directory>
