@@ -71,6 +71,7 @@
     <module>benchmark</module>
     <module>kerby-provider</module>
     <module>kerby-tool</module>
+    <module>kerby-testcontainers</module>
     <module>kerby-dist</module>
   </modules>
 
