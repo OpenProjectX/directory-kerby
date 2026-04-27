@@ -24,6 +24,8 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Testcontainers wrapper for the Kerby KDC Docker image.
@@ -36,6 +38,7 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
     public static final String DEFAULT_CLIENT_PRINCIPAL = "client";
     public static final String DEFAULT_CLIENT_PASSWORD = "client";
     public static final String DEFAULT_SERVICE_PRINCIPAL = "HTTP/localhost";
+    public static final String DEFAULT_KEYTAB_DIR = "/var/lib/kerby/keytabs";
     public static final String DEFAULT_SERVICE_KEYTAB = "/var/lib/kerby/keytabs/service.keytab";
 
     private String realm = DEFAULT_REALM;
@@ -43,6 +46,8 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
     private String clientPassword = DEFAULT_CLIENT_PASSWORD;
     private String servicePrincipal = DEFAULT_SERVICE_PRINCIPAL;
     private String serviceKeytab = DEFAULT_SERVICE_KEYTAB;
+    private final Map<String, String> extraPrincipals = new LinkedHashMap<>();
+    private final Map<String, String> extraServicePrincipals = new LinkedHashMap<>();
 
     public KerbyKdcContainer() {
         this(DEFAULT_IMAGE_NAME);
@@ -82,6 +87,33 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
         return applyConfiguration();
     }
 
+    public KerbyKdcContainer withPrincipal(String principal, String password) {
+        extraPrincipals.put(principal, password);
+        return applyConfiguration();
+    }
+
+    public KerbyKdcContainer withPrincipals(Map<String, String> principals) {
+        extraPrincipals.putAll(principals);
+        return applyConfiguration();
+    }
+
+    public KerbyKdcContainer withServicePrincipals(String... principals) {
+        for (String principal : principals) {
+            extraServicePrincipals.put(principal, null);
+        }
+        return applyConfiguration();
+    }
+
+    public KerbyKdcContainer withAdditionalServicePrincipal(String principal) {
+        extraServicePrincipals.put(principal, null);
+        return applyConfiguration();
+    }
+
+    public KerbyKdcContainer withAdditionalServicePrincipal(String principal, String keytabPath) {
+        extraServicePrincipals.put(principal, keytabPath);
+        return applyConfiguration();
+    }
+
     public KerbyKdcContainer withExtraPrincipals(String principals) {
         withEnv("KERBY_EXTRA_PRINCIPALS", principals);
         return this;
@@ -112,8 +144,20 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
         return serviceKeytab;
     }
 
+    public String getServiceKeytab(String principal) {
+        String keytab = extraServicePrincipals.get(principal);
+        if (keytab != null) {
+            return keytab;
+        }
+        return defaultKeytabPath(principal);
+    }
+
     public void copyServiceKeytabTo(Path target) {
         copyFileFromContainer(serviceKeytab, target.toAbsolutePath().toString());
+    }
+
+    public void copyServiceKeytabTo(String principal, Path target) {
+        copyFileFromContainer(getServiceKeytab(principal), target.toAbsolutePath().toString());
     }
 
     public String getKdcHost() {
@@ -145,6 +189,8 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
         withEnv("KERBY_CLIENT_PASSWORD", clientPassword);
         withEnv("KERBY_SERVICE_PRINCIPAL", servicePrincipal);
         withEnv("KERBY_SERVICE_KEYTAB", serviceKeytab);
+        withEnv("KERBY_EXTRA_PRINCIPALS", joinPasswordPrincipals());
+        withEnv("KERBY_EXTRA_SERVICE_PRINCIPALS", joinServicePrincipals());
         return this;
     }
 
@@ -153,5 +199,37 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
             return principal;
         }
         return principal + "@" + realm;
+    }
+
+    private String joinPasswordPrincipals() {
+        StringBuilder value = new StringBuilder();
+        for (Map.Entry<String, String> entry : extraPrincipals.entrySet()) {
+            appendSeparator(value);
+            value.append(entry.getKey()).append(':').append(entry.getValue());
+        }
+        return value.toString();
+    }
+
+    private String joinServicePrincipals() {
+        StringBuilder value = new StringBuilder();
+        for (Map.Entry<String, String> entry : extraServicePrincipals.entrySet()) {
+            appendSeparator(value);
+            value.append(entry.getKey());
+            if (entry.getValue() != null) {
+                value.append(':').append(entry.getValue());
+            }
+        }
+        return value.toString();
+    }
+
+    private void appendSeparator(StringBuilder value) {
+        if (value.length() > 0) {
+            value.append(',');
+        }
+    }
+
+    private String defaultKeytabPath(String principal) {
+        return DEFAULT_KEYTAB_DIR + "/" + qualifyPrincipal(principal)
+            .replace('/', '_').replace('@', '_') + ".keytab";
     }
 }

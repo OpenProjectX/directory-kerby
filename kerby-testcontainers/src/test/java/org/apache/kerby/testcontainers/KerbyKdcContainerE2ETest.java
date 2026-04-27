@@ -65,6 +65,11 @@ public class KerbyKdcContainerE2ETest {
     private static final String CLIENT = "alice";
     private static final String CLIENT_PASSWORD = "alice-secret";
     private static final String SERVICE = "HTTP/localhost";
+    private static final String API_SERVICE = "HTTP/api.example.com@EXAMPLE.COM";
+    private static final String HIVE_SERVICE = "hive/hiveserver2.example.com@EXAMPLE.COM";
+    private static final String KAFKA_SERVICE = "kafka/broker1.example.com@EXAMPLE.COM";
+    private static final String APP_USER = "app_user@EXAMPLE.COM";
+    private static final String APP_USER_PASSWORD = "app-user-secret";
     private static final String MESSAGE = "kerby-testcontainers-e2e";
 
     @TempDir
@@ -90,14 +95,18 @@ public class KerbyKdcContainerE2ETest {
         try (KerbyKdcContainer kdc = new KerbyKdcContainer(imageName)
                 .withRealm("EXAMPLE.COM")
                 .withClientPrincipal(CLIENT, CLIENT_PASSWORD)
-                .withServicePrincipal(SERVICE)) {
+                .withServicePrincipal(SERVICE)
+                .withServicePrincipals(API_SERVICE, HIVE_SERVICE, KAFKA_SERVICE)
+                .withPrincipal(APP_USER, APP_USER_PASSWORD)) {
             kdc.start();
 
             configureJavaKerberos(kdc);
 
             Path serviceKeytab = testDir.resolve("service.keytab");
+            Path hiveKeytab = testDir.resolve("hive.keytab");
             Path ticketCache = testDir.resolve("alice.ccache");
             kdc.copyServiceKeytabTo(serviceKeytab);
+            kdc.copyServiceKeytabTo(HIVE_SERVICE, hiveKeytab);
 
             KrbClient client = createKerbyClient(kdc);
             TgtTicket tgt = client.requestTgt(kdc.getClientPrincipal(), kdc.getClientPassword());
@@ -105,6 +114,12 @@ public class KerbyKdcContainerE2ETest {
 
             SgtTicket sgt = client.requestSgt(tgt, kdc.getServicePrincipal());
             assertThat(sgt).isNotNull();
+            assertServiceTicket(client, tgt, API_SERVICE);
+            assertServiceTicket(client, tgt, HIVE_SERVICE);
+            assertServiceTicket(client, tgt, KAFKA_SERVICE);
+
+            TgtTicket appUserTgt = client.requestTgt(APP_USER, APP_USER_PASSWORD);
+            assertThat(appUserTgt).isNotNull();
 
             client.storeTicket(tgt, ticketCache.toFile());
 
@@ -114,6 +129,12 @@ public class KerbyKdcContainerE2ETest {
             String authenticatedClient = completeGssExchange(clientSubject, serviceSubject, kdc.getServicePrincipal());
             assertThat(authenticatedClient).contains(CLIENT);
         }
+    }
+
+    private void assertServiceTicket(KrbClient client, TgtTicket tgt, String servicePrincipal)
+            throws Exception {
+        SgtTicket sgt = client.requestSgt(tgt, servicePrincipal);
+        assertThat(sgt).isNotNull();
     }
 
     private void assumeDockerAvailable() {

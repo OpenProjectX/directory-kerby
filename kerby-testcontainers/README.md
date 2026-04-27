@@ -46,11 +46,23 @@ Use it from a test:
 try (KerbyKdcContainer kdc = new KerbyKdcContainer()
         .withRealm("EXAMPLE.COM")
         .withClientPrincipal("alice", "alice-secret")
-        .withServicePrincipal("HTTP/service.example.com")) {
+        .withServicePrincipal("HTTP/service.example.com")
+        .withServicePrincipals(
+            "HTTP/api.example.com@EXAMPLE.COM",
+            "hive/hiveserver2.example.com@EXAMPLE.COM",
+            "kafka/broker1.example.com@EXAMPLE.COM")
+        .withPrincipal("app_user@EXAMPLE.COM", "app-user-secret")) {
     kdc.start();
     String krb5Conf = kdc.getKrb5Conf();
 }
 ```
+
+`withServicePrincipals(...)` adds service principals and exports a keytab for
+each principal under `/var/lib/kerby/keytabs`. Use
+`copyServiceKeytabTo(principal, targetPath)` to copy one of those generated
+keytabs to the host test filesystem. Use
+`withAdditionalServicePrincipal(principal, keytabPath)` when a specific
+container-side keytab path is required.
 
 The container supports these environment variables:
 
