@@ -55,7 +55,7 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
     public KerbyKdcContainer(DockerImageName dockerImageName) {
         super(dockerImageName);
         withExposedPorts(KDC_PORT);
-        waitingFor(Wait.forLogMessage(".*KDC started\\..*", 1)
+        waitingFor(Wait.forLogMessage(".*Kerby KDC container ready\\..*", 1)
             .withStartupTimeout(Duration.ofSeconds(60)));
         applyConfiguration();
     }

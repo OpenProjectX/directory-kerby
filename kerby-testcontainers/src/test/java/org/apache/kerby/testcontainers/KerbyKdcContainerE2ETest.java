@@ -35,11 +35,13 @@ import javax.security.auth.login.LoginContext;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.Principal;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
@@ -119,7 +121,30 @@ public class KerbyKdcContainerE2ETest {
             DockerClientFactory.instance().client();
         } catch (RuntimeException e) {
             Assumptions.assumeTrue(false,
-                "Docker is required for the Kerby KDC container E2E test: " + e.getMessage());
+                "Docker is required for the Kerby KDC container E2E test: " + e.getMessage()
+                    + ". Diagnostics: " + dockerDiagnostics());
+        }
+    }
+
+    private String dockerDiagnostics() {
+        return "user=" + System.getProperty("user.name")
+            + ", docker.host.property=" + System.getProperty("docker.host")
+            + ", DOCKER_HOST=" + System.getenv("DOCKER_HOST")
+            + ", TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE="
+            + System.getenv("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE")
+            + ", /var/run/docker.sock=" + socketStatus(Paths.get("/var/run/docker.sock"))
+            + ", /run/docker.sock=" + socketStatus(Paths.get("/run/docker.sock"));
+    }
+
+    private String socketStatus(Path socket) {
+        try {
+            return "{exists=" + Files.exists(socket)
+                + ", readable=" + Files.isReadable(socket)
+                + ", writable=" + Files.isWritable(socket)
+                + ", realPath=" + (Files.exists(socket) ? socket.toRealPath().toString() : "missing")
+                + "}";
+        } catch (IOException e) {
+            return "{error=" + e.getMessage() + "}";
         }
     }
 

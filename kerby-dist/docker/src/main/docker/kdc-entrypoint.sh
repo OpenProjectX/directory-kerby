@@ -106,12 +106,34 @@ add_service_principal() {
   kadmin_query "ktadd -k ${keytab_file} ${principal}"
 }
 
+wait_for_kdc() {
+  for _ in $(seq 1 30); do
+    if (echo > "/dev/tcp/127.0.0.1/${KERBY_KDC_TCP_PORT}") >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Timed out waiting for KDC on port ${KERBY_KDC_TCP_PORT}" >&2
+  return 1
+}
+
 if [ ! -f "${KERBY_KEYTAB_DIR}/admin.keytab" ]; then
   java -cp "${CLASSPATH}" \
     -DKERBY_LOGFILE=kdcinit \
     org.apache.kerby.kerberos.tool.kdcinit.KdcInitTool \
     "${KERBY_CONF_DIR}" "${KERBY_KEYTAB_DIR}"
 fi
+
+java -cp "${CLASSPATH}" \
+  -DKERBY_LOGFILE=kdc \
+  org.apache.kerby.kerberos.kdc.KerbyKdcServer \
+  -start "${KERBY_CONF_DIR}" "${KERBY_WORK_DIR}" &
+KDC_PID="$!"
+
+trap 'kill "${KDC_PID}" >/dev/null 2>&1 || true' INT TERM
+
+wait_for_kdc
 
 add_password_principal "${KERBY_CLIENT_PRINCIPAL}" "${KERBY_CLIENT_PASSWORD}"
 add_service_principal "${KERBY_SERVICE_PRINCIPAL}" "${KERBY_SERVICE_KEYTAB}"
@@ -146,8 +168,5 @@ if [ -n "${KERBY_EXTRA_SERVICE_PRINCIPALS:-}" ]; then
   IFS="${OLD_IFS}"
 fi
 
-exec java -cp "${CLASSPATH}" \
-  -DKERBY_LOGFILE=kdc \
-  org.apache.kerby.kerberos.kdc.KerbyKdcServer \
-  -start "${KERBY_CONF_DIR}" "${KERBY_WORK_DIR}"
-
+echo "Kerby KDC container ready."
+wait "${KDC_PID}"

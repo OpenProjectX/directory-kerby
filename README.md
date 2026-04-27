@@ -63,6 +63,23 @@ Please look at [kerby-asn1](docs/1.0.0-rc2/kerby-asn1.md) for details.
 ### How to play with the standalone KDC
 Please look at [Kerby KDC](kerby-dist/README.md) for details.
 
+### Docker and Testcontainers
+The Kerby KDC Docker image is built by the `kerby-dist/docker` Maven module,
+and `kerby-testcontainers` provides the typed Testcontainers wrapper and E2E
+test coverage.
+
+Build the image from the current checkout:
+
+```bash
+mvn -Pdist,docker -DskipTests -Ddocker.image.name=apache/kerby-kdc \
+    -Ddocker.image.tag.sha=test -pl kerby-dist/docker -am package
+```
+
+The `-am` flag is important: it builds the local `kdc-dist` reactor module
+before the Docker image, instead of resolving snapshot artifacts from remote
+repositories. See [kerby-testcontainers](kerby-testcontainers/README.md) for
+the Testcontainers E2E command and IDE Docker troubleshooting notes.
+
 ### Kerberos Crypto and Encryption Types
 - Implementing des, des3, rc4, aes, camellia encryption and corresponding checksum types
 - Interoperates with MIT Kerberos and Microsoft AD

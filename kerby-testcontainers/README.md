@@ -1,12 +1,43 @@
 # Kerby Testcontainers
 
 This module provides a typed Testcontainers wrapper for the Kerby KDC Docker
-image built from the repository root `Dockerfile`.
+image built by `kerby-dist/docker`.
 
 Build the image locally:
 
 ```bash
-docker build -t apache/kerby-kdc:latest .
+mvn -Dmaven.repo.local=/home/coder/.m2/repository -Pdist,docker -DskipTests \
+  -Ddocker.image.name=apache/kerby-kdc \
+  -Ddocker.image.tag.sha=test \
+  -pl kerby-dist/docker -am package
+```
+
+Use `-am` when building from the repository root. It makes Maven build the
+current checkout's `kdc-dist` reactor module first, then the Docker module
+unpacks that local distribution into the image. Running the Docker module in
+isolation can make Maven try to resolve `*-SNAPSHOT` artifacts from remote
+repositories.
+
+Run the end-to-end Testcontainers test:
+
+```bash
+mvn -Dmaven.repo.local=/home/coder/.m2/repository -pl kerby-testcontainers -am \
+  -Dtest=KerbyKdcContainerE2ETest \
+  -Dsurefire.failIfNoSpecifiedTests=false \
+  -Dkerby.testcontainers.image=apache/kerby-kdc:latest \
+  test
+```
+
+If the test is launched from IntelliJ IDEA, reimport Maven after dependency
+changes and verify the test classpath uses Testcontainers `1.21.4` or newer.
+Older Testcontainers versions may use Docker API `1.32`; Docker `29.x` rejects
+that client API because it requires API `1.40` or newer. If Docker is running
+but Testcontainers still cannot discover it from IDEA, set these run
+configuration environment variables:
+
+```text
+DOCKER_HOST=unix:///var/run/docker.sock
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 ```
 
 Use it from a test:
@@ -31,4 +62,3 @@ The container supports these environment variables:
 `KERBY_EXTRA_PRINCIPALS` is a comma-separated list of `principal:password`
 entries. `KERBY_EXTRA_SERVICE_PRINCIPALS` is a comma-separated list of
 `principal` or `principal:/path/to/keytab` entries.
-
