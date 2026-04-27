@@ -1,0 +1,67 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+services:
+  kerby-kdc:
+    image: apache/kerby-kdc:latest
+    container_name: kerby-kdc
+    ports:
+      - "88:88/tcp"
+      - "88:88/udp"
+    environment:
+      KERBY_REALM: EXAMPLE.COM
+      KERBY_KDC_HOST: kerby-kdc
+      KERBY_KDC_BIND_HOST: 0.0.0.0
+      KERBY_KDC_TCP_PORT: "88"
+      KERBY_KDC_UDP_PORT: "88"
+      KERBY_CLIENT_KDC_HOST: kerby-kdc
+      KERBY_CLIENT_KDC_PORT: "88"
+      KERBY_CLIENT_DOMAIN: example.com
+#      KERBY_PREAUTH_REQUIRED: "true"
+#      KERBY_PA_ENC_TIMESTAMP_REQUIRED: "true"
+
+      KERBY_CLIENT_PRINCIPAL: app_user@EXAMPLE.COM
+      KERBY_CLIENT_PASSWORD: app-user-secret
+
+      KERBY_SERVICE_PRINCIPAL: HTTP/api.example.com@EXAMPLE.COM
+      KERBY_SERVICE_KEYTAB: /var/lib/kerby/keytabs/http-api.keytab
+
+      KERBY_EXTRA_PRINCIPALS: >-
+        alice@EXAMPLE.COM:alice-secret,
+        bob@EXAMPLE.COM:bob-secret
+
+      KERBY_EXTRA_SERVICE_PRINCIPALS: >-
+        hive/hiveserver2.example.com@EXAMPLE.COM:/var/lib/kerby/keytabs/hive.keytab,
+        kafka/broker1.example.com@EXAMPLE.COM:/var/lib/kerby/keytabs/kafka.keytab
+    volumes:
+      - kerby-data:/var/lib/kerby
+      - ./log4j.properties:/opt/kerby/log4j.properties:ro
+
+  kerberos-client:
+    image: ghcr.io/openprojectx/kerberos:latest
+    container_name: kerberos-client
+    depends_on:
+      - kerby-kdc
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep infinity"]
+    environment:
+      KRB5_CONFIG: /kerby/client/krb5.conf
+      KRB5_TRACE: /dev/stderr
+    volumes:
+      - kerby-data:/kerby:ro
+
+volumes:
+  kerby-data:

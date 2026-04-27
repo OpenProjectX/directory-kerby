@@ -24,12 +24,18 @@ KERBY_DATA_DIR="${KERBY_DATA_DIR:-/var/lib/kerby}"
 KERBY_WORK_DIR="${KERBY_WORK_DIR:-/var/run/kerby}"
 KERBY_KEYTAB_DIR="${KERBY_KEYTAB_DIR:-${KERBY_DATA_DIR}/keytabs}"
 KERBY_BACKEND_DIR="${KERBY_BACKEND_DIR:-${KERBY_DATA_DIR}/jsonbackend}"
+KERBY_CLIENT_CONF_DIR="${KERBY_CLIENT_CONF_DIR:-${KERBY_DATA_DIR}/client}"
 
 KERBY_REALM="${KERBY_REALM:-EXAMPLE.COM}"
 KERBY_KDC_BIND_HOST="${KERBY_KDC_BIND_HOST:-0.0.0.0}"
 KERBY_KDC_HOST="${KERBY_KDC_HOST:-localhost}"
 KERBY_KDC_TCP_PORT="${KERBY_KDC_TCP_PORT:-88}"
 KERBY_KDC_UDP_PORT="${KERBY_KDC_UDP_PORT:-88}"
+KERBY_CLIENT_KDC_HOST="${KERBY_CLIENT_KDC_HOST:-${KERBY_KDC_HOST}}"
+KERBY_CLIENT_KDC_PORT="${KERBY_CLIENT_KDC_PORT:-${KERBY_KDC_TCP_PORT}}"
+KERBY_CLIENT_DOMAIN="${KERBY_CLIENT_DOMAIN:-example.com}"
+KERBY_PREAUTH_REQUIRED="${KERBY_PREAUTH_REQUIRED:-false}"
+KERBY_PA_ENC_TIMESTAMP_REQUIRED="${KERBY_PA_ENC_TIMESTAMP_REQUIRED:-false}"
 KERBY_ADMIN_PORT="${KERBY_ADMIN_PORT:-65417}"
 KERBY_ADMIN_HOST="${KERBY_ADMIN_HOST:-localhost}"
 KERBY_ADMIN_PROTOCOL="${KERBY_ADMIN_PROTOCOL:-adminprotocol}"
@@ -40,7 +46,34 @@ KERBY_SERVICE_KEYTAB="${KERBY_SERVICE_KEYTAB:-${KERBY_KEYTAB_DIR}/service.keytab
 
 CLASSPATH="${KERBY_HOME}/lib/*:${KERBY_HOME}"
 
-mkdir -p "${KERBY_CONF_DIR}" "${KERBY_DATA_DIR}" "${KERBY_WORK_DIR}" "${KERBY_KEYTAB_DIR}" "${KERBY_BACKEND_DIR}"
+mkdir -p "${KERBY_CONF_DIR}" "${KERBY_DATA_DIR}" "${KERBY_WORK_DIR}" \
+  "${KERBY_KEYTAB_DIR}" "${KERBY_BACKEND_DIR}" "${KERBY_CLIENT_CONF_DIR}"
+
+write_krb5_conf() {
+  file="$1"
+  host="$2"
+  port="$3"
+  cat > "${file}" <<EOF
+[libdefaults]
+    kdc_realm = ${KERBY_REALM}
+    default_realm = ${KERBY_REALM}
+    dns_lookup_kdc = false
+    dns_lookup_realm = false
+    rdns = false
+    udp_preference_limit = 1
+    kdc_tcp_port = ${port}
+    kdc_udp_port = ${port}
+
+[realms]
+    ${KERBY_REALM} = {
+        kdc = ${host}:${port}
+    }
+
+[domain_realm]
+    .${KERBY_CLIENT_DOMAIN} = ${KERBY_REALM}
+    ${KERBY_CLIENT_DOMAIN} = ${KERBY_REALM}
+EOF
+}
 
 cat > "${KERBY_CONF_DIR}/kdc.conf" <<EOF
 [kdcdefaults]
@@ -48,21 +81,13 @@ cat > "${KERBY_CONF_DIR}/kdc.conf" <<EOF
   kdc_udp_port = ${KERBY_KDC_UDP_PORT}
   kdc_tcp_port = ${KERBY_KDC_TCP_PORT}
   kdc_realm = ${KERBY_REALM}
+  preauth_required = ${KERBY_PREAUTH_REQUIRED}
+  pa_enc_timestamp_required = ${KERBY_PA_ENC_TIMESTAMP_REQUIRED}
 EOF
 
-cat > "${KERBY_CONF_DIR}/krb5.conf" <<EOF
-[libdefaults]
-    kdc_realm = ${KERBY_REALM}
-    default_realm = ${KERBY_REALM}
-    udp_preference_limit = 1
-    kdc_tcp_port = ${KERBY_KDC_TCP_PORT}
-    kdc_udp_port = ${KERBY_KDC_UDP_PORT}
-
-[realms]
-    ${KERBY_REALM} = {
-        kdc = ${KERBY_KDC_HOST}:${KERBY_KDC_TCP_PORT}
-    }
-EOF
+write_krb5_conf "${KERBY_CONF_DIR}/krb5.conf" "${KERBY_KDC_HOST}" "${KERBY_KDC_TCP_PORT}"
+write_krb5_conf "${KERBY_CLIENT_CONF_DIR}/krb5.conf" \
+  "${KERBY_CLIENT_KDC_HOST}" "${KERBY_CLIENT_KDC_PORT}"
 
 cat > "${KERBY_CONF_DIR}/backend.conf" <<EOF
 kdc_identity_backend = org.apache.kerby.kerberos.kdc.identitybackend.JsonIdentityBackend
