@@ -50,16 +50,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract project version
+        id: project
+        shell: bash
+        run: |
+          version="$(python3 -c "import xml.etree.ElementTree as ET; ns={'m':'http://maven.apache.org/POM/4.0.0'}; root=ET.parse('pom.xml').getroot(); version=root.find('m:version', ns); print(version.text.strip() if version is not None and version.text else '')")"
+          if [ -z "${version}" ]; then
+            echo "Could not find root project version in pom.xml" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
+        env:
+          DOCKER_METADATA_SHORT_SHA_LENGTH: 8
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short,prefix=
+            type=raw,value=${{ steps.project.outputs.version }}
+            type=raw,value=latest
 
       - name: Build and publish Docker image
         uses: docker/build-push-action@v6
