@@ -22,6 +22,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
+import java.nio.file.Path;
 import java.time.Duration;
 
 /**
@@ -111,6 +112,10 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
         return serviceKeytab;
     }
 
+    public void copyServiceKeytabTo(Path target) {
+        copyFileFromContainer(serviceKeytab, target.toAbsolutePath().toString());
+    }
+
     public String getKdcHost() {
         return getHost();
     }
@@ -150,4 +155,3 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
         return principal + "@" + realm;
     }
 }
-

@@ -29,6 +29,7 @@
 
   <modules>
     <module>kdc-dist</module>
+    <module>docker</module>
     <module>tool-dist</module>
   </modules>
 

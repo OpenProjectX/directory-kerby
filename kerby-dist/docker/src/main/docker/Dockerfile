@@ -14,19 +14,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM maven:3.9-eclipse-temurin-8 AS build
-
-WORKDIR /src
-COPY . .
-RUN mvn -pl kerby-dist/kdc-dist -am -Pdist -DskipTests package
-RUN mkdir -p /opt/kerby \
-    && tar -xzf kerby-dist/kdc-dist/target/kdc-dist-*.tar.gz -C /opt/kerby --strip-components=1
-
 FROM eclipse-temurin:8-jre
 
 WORKDIR /opt/kerby
-COPY --from=build /opt/kerby /opt/kerby
-COPY docker/kdc-entrypoint.sh /opt/kerby/bin/kdc-entrypoint.sh
+COPY kerby/ /opt/kerby/
+COPY kdc-entrypoint.sh /opt/kerby/bin/kdc-entrypoint.sh
 RUN chmod +x /opt/kerby/bin/*.sh \
     && mkdir -p /var/lib/kerby /var/run/kerby
 
