@@ -60,6 +60,9 @@ public final class Asn1Reader {
     }
 
     protected byte readByte() throws IOException {
+        if (!available()) {
+            throw new IOException("Unexpected end of ASN.1 data at position " + position);
+        }
         return buffer.get(position++);
     }
 

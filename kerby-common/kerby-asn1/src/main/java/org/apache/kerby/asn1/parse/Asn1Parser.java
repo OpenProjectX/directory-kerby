@@ -32,6 +32,7 @@ public class Asn1Parser {
     public static void parse(Asn1Container container) throws IOException {
         Asn1Reader reader = new Asn1Reader(container.getBuffer());
         int pos = container.getBodyStart();
+        boolean sawEoc = false;
         while (true) {
             reader.setPosition(pos);
             Asn1ParseResult asn1Obj = parse(reader);
@@ -43,12 +44,17 @@ public class Asn1Parser {
 
             pos += asn1Obj.getEncodingLength();
             if (asn1Obj.isEOC()) {
+                sawEoc = true;
                 break;
             }
 
             if (container.checkBodyFinished(pos)) {
                 break;
             }
+        }
+
+        if (!container.isDefinitiveLength() && !sawEoc) {
+            throw new IOException("Indefinite length ASN.1 container missing EOC terminator");
         }
 
         container.setBodyEnd(pos);
@@ -67,6 +73,7 @@ public class Asn1Parser {
         Asn1Header header = reader.readHeader();
         Tag tmpTag = header.getTag();
         int bodyStart = reader.getPosition();
+        validateLength(header, tmpTag, bodyStart, reader.getBuffer());
         Asn1ParseResult parseResult;
 
         if (tmpTag.isPrimitive()) {
@@ -81,5 +88,20 @@ public class Asn1Parser {
         }
 
         return parseResult;
+    }
+
+    private static void validateLength(Asn1Header header, Tag tag,
+                                       int bodyStart, ByteBuffer buffer) throws IOException {
+        if (!header.isDefinitiveLength()) {
+            if (tag.isPrimitive()) {
+                throw new IOException("Primitive ASN.1 value cannot use indefinite length");
+            }
+            return;
+        }
+
+        long bodyEnd = (long) bodyStart + header.getLength();
+        if (bodyEnd > buffer.limit()) {
+            throw new IOException("ASN.1 length extends beyond available data: " + header.getLength());
+        }
     }
 }
