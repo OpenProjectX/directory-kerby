@@ -96,6 +96,37 @@ public class Asn1MalformedInputTest {
             .isInstanceOf(IOException.class);
     }
 
+    @Test
+    public void testParseHighTagWithUnterminatedContinuationShouldThrowIoException()  {
+        byte[] malformedHighTag = new byte[] {
+            0x1f,
+            (byte) 0x81,
+            (byte) 0x80,
+            0x00
+        };
+
+        assertThatThrownBy(() -> Asn1.parse(malformedHighTag))
+            .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    public void testParseHighTagWithLongContinuationChainShouldThrowIoException() {
+        byte[] malformedHighTag = new byte[] {
+            0x1f,
+            (byte) 0x81,
+            (byte) 0x80,
+            (byte) 0x80,
+            (byte) 0x80,
+            (byte) 0x80,
+            (byte) 0x80,
+            0x01,
+            0x00
+        };
+
+        assertThatThrownBy(() -> Asn1.parse(malformedHighTag))
+            .isInstanceOf(IOException.class);
+    }
+
     private static byte[] buildDeeplyNestedIndefiniteSequence(int depth) {
         byte[] integerOne = new byte[] {0x02, 0x01, 0x01};
         byte[] encoded = new byte[depth * 4 + integerOne.length];

@@ -28,6 +28,8 @@ import java.nio.ByteBuffer;
  * ASN1 reader for positional reading.
  */
 public final class Asn1Reader {
+    private static final int MAX_HIGH_TAG_CONTINUATION_BYTES = 5;
+
     private ByteBuffer buffer;
     private int position;
 
@@ -82,18 +84,29 @@ public final class Asn1Reader {
 
         if (tagNo == 0x1f) {
             tagNo = 0;
+            int continuationBytes = 0;
 
             int b = readByte() & 0xff;
             if ((b & 0x7f) == 0) {
                 throw new IOException("Invalid high tag number found");
             }
 
-            while (b >= 0 && (b & 0x80) != 0) {
+            while ((b & 0x80) != 0) {
+                continuationBytes++;
+                if (continuationBytes > MAX_HIGH_TAG_CONTINUATION_BYTES) {
+                    throw new IOException("High tag number is too long");
+                }
+                if (tagNo > (Integer.MAX_VALUE >>> 7)) {
+                    throw new IOException("High tag number overflow");
+                }
                 tagNo |= b & 0x7f;
                 tagNo <<= 7;
-                b = readByte();
+                b = readByte() & 0xff;
             }
 
+            if (tagNo > Integer.MAX_VALUE - (b & 0x7f)) {
+                throw new IOException("High tag number overflow");
+            }
             tagNo |= b & 0x7f;
         }
 
