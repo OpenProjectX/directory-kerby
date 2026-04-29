@@ -29,13 +29,22 @@ import java.nio.ByteBuffer;
  */
 public class Asn1Parser {
 
+    private static final String MAX_NESTING_DEPTH_PROPERTY = "org.apache.kerby.asn1.maxNestingDepth";
+    private static final int DEFAULT_MAX_NESTING_DEPTH = 1024;
+    private static final int MAX_NESTING_DEPTH = resolveMaxNestingDepth();
+
     public static void parse(Asn1Container container) throws IOException {
+        parse(container, 0);
+    }
+
+    private static void parse(Asn1Container container, int depth) throws IOException {
+        validateDepth(depth);
         Asn1Reader reader = new Asn1Reader(container.getBuffer());
         int pos = container.getBodyStart();
         boolean sawEoc = false;
         while (true) {
             reader.setPosition(pos);
-            Asn1ParseResult asn1Obj = parse(reader);
+            Asn1ParseResult asn1Obj = parse(reader, depth);
             if (asn1Obj == null) {
                 break;
             }
@@ -62,10 +71,15 @@ public class Asn1Parser {
 
     public static Asn1ParseResult parse(ByteBuffer content) throws IOException {
         Asn1Reader reader = new Asn1Reader(content);
-        return parse(reader);
+        return parse(reader, 0);
     }
 
     public static Asn1ParseResult parse(Asn1Reader reader) throws IOException {
+        return parse(reader, 0);
+    }
+
+    private static Asn1ParseResult parse(Asn1Reader reader, int depth) throws IOException {
+        validateDepth(depth);
         if (!reader.available()) {
             return null;
         }
@@ -82,7 +96,7 @@ public class Asn1Parser {
             Asn1Container container = new Asn1Container(header,
                 bodyStart, reader.getBuffer());
             if (header.getLength() != 0) {
-                parse(container);
+                parse(container, depth + 1);
             }
             parseResult = container;
         }
@@ -103,5 +117,35 @@ public class Asn1Parser {
         if (bodyEnd > buffer.limit()) {
             throw new IOException("ASN.1 length extends beyond available data: " + header.getLength());
         }
+    }
+
+    private static void validateDepth(int depth) throws IOException {
+        if (depth > MAX_NESTING_DEPTH) {
+            throw new IOException("ASN.1 nesting depth exceeds maximum allowed depth: " + MAX_NESTING_DEPTH);
+        }
+    }
+
+    private static int resolveMaxNestingDepth() {
+        String configuredValue;
+        try {
+            configuredValue = System.getProperty(MAX_NESTING_DEPTH_PROPERTY);
+        } catch (SecurityException e) {
+            return DEFAULT_MAX_NESTING_DEPTH;
+        }
+
+        if (configuredValue == null) {
+            return DEFAULT_MAX_NESTING_DEPTH;
+        }
+
+        try {
+            int configuredDepth = Integer.parseInt(configuredValue.trim());
+            if (configuredDepth > 0) {
+                return configuredDepth;
+            }
+        } catch (NumberFormatException e) {
+            return DEFAULT_MAX_NESTING_DEPTH;
+        }
+
+        return DEFAULT_MAX_NESTING_DEPTH;
     }
 }

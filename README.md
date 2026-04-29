@@ -60,6 +60,15 @@ Please look at [kerb-simplekdc](docs/1.0.0-rc2/simplekdc.md) for details.
 A model driven ASN-1 encoding and decoding framework implemented with Java.  
 Please look at [kerby-asn1](docs/1.0.0-rc2/kerby-asn1.md) for details.
 
+#### ASN.1 parser depth limit
+The ASN.1 parser depth limit can be configured with a JVM system property:
+
+```
+-Dorg.apache.kerby.asn1.maxNestingDepth=2048
+```
+
+If the property is missing, non-numeric, or less than 1, Kerby falls back to the default depth limit of 1024.
+
 ### How to play with the standalone KDC
 Please look at [Kerby KDC](kerby-dist/README.md) for details.
 

@@ -60,4 +60,35 @@ public class Asn1MalformedInputTest {
             .isInstanceOf(IOException.class)
             .hasMessageContaining("missing EOC terminator");
     }
+
+    @Test
+    public void testParseDeepNestingShouldFailFastWithIoExceptionAfterDepthLimitFix() {
+        byte[] deeplyNested = buildDeeplyNestedIndefiniteSequence(10000);
+
+        assertThatThrownBy(() -> Asn1.parse(deeplyNested))
+            .isInstanceOf(IOException.class)
+            .hasMessageContaining("depth")
+            .hasMessageContaining("maximum allowed");
+    }
+
+    private static byte[] buildDeeplyNestedIndefiniteSequence(int depth) {
+        byte[] integerOne = new byte[] {0x02, 0x01, 0x01};
+        byte[] encoded = new byte[depth * 4 + integerOne.length];
+        int pos = 0;
+
+        for (int i = 0; i < depth; i++) {
+            encoded[pos++] = 0x30;
+            encoded[pos++] = (byte) 0x80;
+        }
+
+        System.arraycopy(integerOne, 0, encoded, pos, integerOne.length);
+        pos += integerOne.length;
+
+        for (int i = 0; i < depth; i++) {
+            encoded[pos++] = 0x00;
+            encoded[pos++] = 0x00;
+        }
+
+        return encoded;
+    }
 }
