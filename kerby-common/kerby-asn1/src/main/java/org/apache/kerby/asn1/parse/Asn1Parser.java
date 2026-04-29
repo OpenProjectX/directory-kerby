@@ -34,17 +34,18 @@ public class Asn1Parser {
     private static final int MAX_NESTING_DEPTH = resolveMaxNestingDepth();
 
     public static void parse(Asn1Container container) throws IOException {
-        parse(container, 0);
+        parse(container, 0, container.getBodyEnd());
     }
 
-    private static void parse(Asn1Container container, int depth) throws IOException {
+    private static void parse(Asn1Container container, int depth, int upperBound) throws IOException {
         validateDepth(depth);
         Asn1Reader reader = new Asn1Reader(container.getBuffer());
         int pos = container.getBodyStart();
         boolean sawEoc = false;
+        int containerUpperBound = resolveContainerUpperBound(container, upperBound, reader.getBuffer().limit());
         while (true) {
             reader.setPosition(pos);
-            Asn1ParseResult asn1Obj = parse(reader, depth);
+            Asn1ParseResult asn1Obj = parse(reader, depth, containerUpperBound);
             if (asn1Obj == null) {
                 break;
             }
@@ -57,7 +58,7 @@ public class Asn1Parser {
                 break;
             }
 
-            if (container.checkBodyFinished(pos)) {
+            if (container.checkBodyFinished(pos) || pos >= containerUpperBound) {
                 break;
             }
         }
@@ -71,14 +72,14 @@ public class Asn1Parser {
 
     public static Asn1ParseResult parse(ByteBuffer content) throws IOException {
         Asn1Reader reader = new Asn1Reader(content);
-        return parse(reader, 0);
+        return parse(reader, 0, content.limit());
     }
 
     public static Asn1ParseResult parse(Asn1Reader reader) throws IOException {
-        return parse(reader, 0);
+        return parse(reader, 0, reader.getBuffer().limit());
     }
 
-    private static Asn1ParseResult parse(Asn1Reader reader, int depth) throws IOException {
+    private static Asn1ParseResult parse(Asn1Reader reader, int depth, int upperBound) throws IOException {
         validateDepth(depth);
         if (!reader.available()) {
             return null;
@@ -87,7 +88,7 @@ public class Asn1Parser {
         Asn1Header header = reader.readHeader();
         Tag tmpTag = header.getTag();
         int bodyStart = reader.getPosition();
-        validateLength(header, tmpTag, bodyStart, reader.getBuffer());
+        validateLength(header, tmpTag, bodyStart, upperBound, reader.getBuffer());
         Asn1ParseResult parseResult;
 
         if (tmpTag.isPrimitive()) {
@@ -96,7 +97,7 @@ public class Asn1Parser {
             Asn1Container container = new Asn1Container(header,
                 bodyStart, reader.getBuffer());
             if (header.getLength() != 0) {
-                parse(container, depth + 1);
+                parse(container, depth + 1, upperBound);
             }
             parseResult = container;
         }
@@ -105,7 +106,7 @@ public class Asn1Parser {
     }
 
     private static void validateLength(Asn1Header header, Tag tag,
-                                       int bodyStart, ByteBuffer buffer) throws IOException {
+                                       int bodyStart, int upperBound, ByteBuffer buffer) throws IOException {
         if (!header.isDefinitiveLength()) {
             if (tag.isPrimitive()) {
                 throw new IOException("Primitive ASN.1 value cannot use indefinite length");
@@ -114,9 +115,19 @@ public class Asn1Parser {
         }
 
         long bodyEnd = (long) bodyStart + header.getLength();
-        if (bodyEnd > buffer.limit()) {
+        int effectiveUpperBound = Math.min(upperBound, buffer.limit());
+        if (bodyEnd > effectiveUpperBound) {
             throw new IOException("ASN.1 length extends beyond available data: " + header.getLength());
         }
+    }
+
+    private static int resolveContainerUpperBound(Asn1Container container,
+                                                  int upperBound, int bufferLimit) {
+        int effectiveUpperBound = Math.min(upperBound, bufferLimit);
+        if (container.getBodyEnd() != -1) {
+            return Math.min(container.getBodyEnd(), effectiveUpperBound);
+        }
+        return effectiveUpperBound;
     }
 
     private static void validateDepth(int depth) throws IOException {

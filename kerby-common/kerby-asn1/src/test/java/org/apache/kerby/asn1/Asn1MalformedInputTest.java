@@ -71,6 +71,31 @@ public class Asn1MalformedInputTest {
             .hasMessageContaining("maximum allowed");
     }
 
+    @Test
+    public void testParseChildPrimitiveLengthEscapesParentBoundaryShouldThrowIoException() {
+        byte[] escapedChild = new byte[] {
+            0x30, 0x03,
+            0x04, 0x05,
+            0x41, 0x41, 0x41, 0x41, 0x41
+        };
+
+        assertThatThrownBy(() -> Asn1.parse(escapedChild))
+            .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    public void testParseChildConstructedLengthEscapesParentBoundaryShouldThrowIoException() {
+        byte[] escapedConstructedChild = new byte[] {
+            0x30, 0x04,
+            0x30, 0x06,
+            0x02, 0x01, 0x01,
+            0x02, 0x01, 0x01
+        };
+
+        assertThatThrownBy(() -> Asn1.parse(escapedConstructedChild))
+            .isInstanceOf(IOException.class);
+    }
+
     private static byte[] buildDeeplyNestedIndefiniteSequence(int depth) {
         byte[] integerOne = new byte[] {0x02, 0x01, 0x01};
         byte[] encoded = new byte[depth * 4 + integerOne.length];
