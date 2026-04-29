@@ -54,6 +54,9 @@ public class Asn1Parser {
 
             pos += asn1Obj.getEncodingLength();
             if (asn1Obj.isEOC()) {
+                if (container.isDefinitiveLength()) {
+                    throw new IOException("EOC is not allowed inside definite-length ASN.1 container");
+                }
                 sawEoc = true;
                 break;
             }

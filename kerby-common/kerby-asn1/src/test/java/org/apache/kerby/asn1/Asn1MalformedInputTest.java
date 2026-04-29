@@ -127,6 +127,32 @@ public class Asn1MalformedInputTest {
             .isInstanceOf(IOException.class);
     }
 
+    @Test
+    public void testParseEocInsideDefiniteContainerShouldThrowIoException() {
+        byte[] definiteWithEmbeddedEoc = new byte[] {
+            0x30, 0x05,
+            0x00, 0x00,
+            0x02, 0x01, 0x01
+        };
+
+        assertThatThrownBy(() -> Asn1.parse(definiteWithEmbeddedEoc))
+            .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    public void testParseDefiniteContainerMustNotUseEocAsTerminator() {
+        byte[] definiteWithEarlyEoc = new byte[] {
+            0x30, 0x08,
+            0x30, 0x03,
+            0x02, 0x01, 0x01,
+            0x00, 0x00,
+            0x05
+        };
+
+        assertThatThrownBy(() -> Asn1.parse(definiteWithEarlyEoc))
+            .isInstanceOf(IOException.class);
+    }
+
     private static byte[] buildDeeplyNestedIndefiniteSequence(int depth) {
         byte[] integerOne = new byte[] {0x02, 0x01, 0x01};
         byte[] encoded = new byte[depth * 4 + integerOne.length];
