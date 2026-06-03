@@ -122,11 +122,48 @@ normalize_principal() {
   esac
 }
 
-kadmin_query() {
+kadmin_query_once() {
   java -cp "${CLASSPATH}" \
     -DKERBY_LOGFILE=kadmin \
     org.apache.kerby.kerberos.tool.kadmin.KadminTool \
     "${KERBY_CONF_DIR}" -k "${KERBY_KEYTAB_DIR}/admin.keytab" -q "$1"
+}
+
+kadmin_query() {
+  query="$1"
+  attempts="${KERBY_KADMIN_ATTEMPTS:-30}"
+  delay_seconds="${KERBY_KADMIN_RETRY_DELAY_SECONDS:-1}"
+  output_file="${KERBY_WORK_DIR}/kadmin-query.out"
+  attempt=1
+
+  while [ "${attempt}" -le "${attempts}" ]; do
+    set +e
+    kadmin_query_once "${query}" > "${output_file}" 2>&1
+    status="$?"
+    set -e
+
+    if [ "${status}" -eq 0 ] \
+      && ! grep -Eq 'Could not login with:|Cannot locate KDC|authentication failed' "${output_file}"; then
+      cat "${output_file}"
+      return 0
+    fi
+
+    if ! grep -Eq 'Could not login with:|Cannot locate KDC|authentication failed' "${output_file}"; then
+      cat "${output_file}"
+      return "${status}"
+    fi
+
+    if [ "${attempt}" -lt "${attempts}" ]; then
+      echo "Kerby KDC admin is not ready for query '${query}', retry ${attempt}/${attempts}." >&2
+      sleep "${delay_seconds}"
+    fi
+
+    attempt=$((attempt + 1))
+  done
+
+  cat "${output_file}" >&2
+  echo "Timed out waiting for Kerby KDC admin to accept query '${query}'." >&2
+  return 1
 }
 
 remember_keytab() {

@@ -109,6 +109,8 @@ KERBY_CLIENT_KDC_PORT=88
 KERBY_CLIENT_DOMAIN=example.com
 KERBY_CLIENT_CONF_DIR=/var/lib/kerby/client
 KERBY_READY_FILE=/var/lib/kerby/ready
+KERBY_KADMIN_ATTEMPTS=30
+KERBY_KADMIN_RETRY_DELAY_SECONDS=1
 ```
 
 `KERBY_KDC_HOST` is used by Kerby Java processes inside the KDC container.
@@ -125,6 +127,10 @@ The image automatically adds its generated config to `JAVA_TOOL_OPTIONS` as:
 
 This makes `kdcinit`, `KerbyKdcServer`, and `KadminTool` use the same generated
 realm configuration during container startup.
+
+The entrypoint retries Kerby admin commands while the KDC is still becoming
+usable. `KERBY_KADMIN_ATTEMPTS` and `KERBY_KADMIN_RETRY_DELAY_SECONDS` control
+that retry window.
 
 The Compose example also disables KDC preauthentication for MIT krb5 client
 interoperability in local development:
