@@ -111,6 +111,7 @@ KERBY_CLIENT_CONF_DIR=/var/lib/kerby/client
 KERBY_READY_FILE=/var/lib/kerby/ready
 KERBY_KADMIN_ATTEMPTS=30
 KERBY_KADMIN_RETRY_DELAY_SECONDS=1
+KERBY_DEBUG=false
 ```
 
 `KERBY_KDC_HOST` is used by Kerby Java processes inside the KDC container.
@@ -131,6 +132,20 @@ realm configuration during container startup.
 The entrypoint retries Kerby admin commands while the KDC is still becoming
 usable. `KERBY_KADMIN_ATTEMPTS` and `KERBY_KADMIN_RETRY_DELAY_SECONDS` control
 that retry window.
+
+Set `KERBY_DEBUG=true` when troubleshooting startup. The entrypoint then dumps
+the generated KDC, server Kerberos, client Kerberos, backend, and admin server
+config files to container stdout. It also enables Kerby DEBUG logging on stdout
+and JDK Kerberos client debug flags:
+
+```text
+-Dsun.security.krb5.debug=true
+-Dsun.security.spnego.debug=true
+-Dsun.security.jgss.debug=true
+```
+
+This is intentionally noisy and should normally be used only for failing CI
+runs or local reproduction of Kerberos bootstrap issues.
 
 The Compose example also disables KDC preauthentication for MIT krb5 client
 interoperability in local development:

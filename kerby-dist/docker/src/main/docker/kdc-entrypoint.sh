@@ -115,6 +115,52 @@ append_java_tool_option() {
   export JAVA_TOOL_OPTIONS
 }
 
+debug_enabled() {
+  case "${KERBY_DEBUG:-false}" in
+    true|TRUE|1|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+dump_file() {
+  label="$1"
+  file="$2"
+  if [ -f "${file}" ]; then
+    echo "----- ${label}: ${file} -----"
+    sed 's/^/| /' "${file}"
+    echo "----- end ${label} -----"
+  else
+    echo "----- ${label}: ${file} is missing -----"
+  fi
+}
+
+dump_debug_configuration() {
+  if ! debug_enabled; then
+    return 0
+  fi
+
+  echo "Kerby debug is enabled."
+  echo "KERBY_REALM=${KERBY_REALM}"
+  echo "KERBY_KDC_BIND_HOST=${KERBY_KDC_BIND_HOST}"
+  echo "KERBY_KDC_HOST=${KERBY_KDC_HOST}"
+  echo "KERBY_KDC_TCP_PORT=${KERBY_KDC_TCP_PORT}"
+  echo "KERBY_KDC_UDP_PORT=${KERBY_KDC_UDP_PORT}"
+  echo "KERBY_CLIENT_KDC_HOST=${KERBY_CLIENT_KDC_HOST}"
+  echo "KERBY_CLIENT_KDC_PORT=${KERBY_CLIENT_KDC_PORT}"
+  echo "KERBY_CLIENT_DOMAIN=${KERBY_CLIENT_DOMAIN}"
+  echo "KERBY_ADMIN_HOST=${KERBY_ADMIN_HOST}"
+  echo "KERBY_ADMIN_PORT=${KERBY_ADMIN_PORT}"
+  echo "KERBY_ADMIN_PROTOCOL=${KERBY_ADMIN_PROTOCOL}"
+  echo "KERBY_KADMIN_ATTEMPTS=${KERBY_KADMIN_ATTEMPTS:-30}"
+  echo "KERBY_KADMIN_RETRY_DELAY_SECONDS=${KERBY_KADMIN_RETRY_DELAY_SECONDS:-1}"
+  echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS:-}"
+  dump_file "kdc.conf" "${KERBY_CONF_DIR}/kdc.conf"
+  dump_file "server krb5.conf" "${KERBY_CONF_DIR}/krb5.conf"
+  dump_file "client krb5.conf" "${KERBY_CLIENT_CONF_DIR}/krb5.conf"
+  dump_file "backend.conf" "${KERBY_CONF_DIR}/backend.conf"
+  dump_file "adminServer.conf" "${KERBY_CONF_DIR}/adminServer.conf"
+}
+
 normalize_principal() {
   case "$1" in
     *@*) printf '%s' "$1" ;;
@@ -211,6 +257,13 @@ wait_for_kdc() {
 }
 
 append_java_tool_option "-Djava.security.krb5.conf=${KERBY_CONF_DIR}/krb5.conf"
+if debug_enabled; then
+  append_java_tool_option "-Dlog4j.configuration=file:${KERBY_HOME}/log4j-debug.properties"
+  append_java_tool_option "-Dsun.security.krb5.debug=true"
+  append_java_tool_option "-Dsun.security.spnego.debug=true"
+  append_java_tool_option "-Dsun.security.jgss.debug=true"
+fi
+dump_debug_configuration
 
 if [ ! -f "${KERBY_KEYTAB_DIR}/admin.keytab" ]; then
   java -cp "${CLASSPATH}" \
