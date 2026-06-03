@@ -23,7 +23,7 @@ services:
       - "88:88/udp"
     environment:
       KERBY_REALM: EXAMPLE.COM
-      KERBY_KDC_HOST: kerby-kdc
+      KERBY_KDC_HOST: 127.0.0.1
       KERBY_KDC_BIND_HOST: 0.0.0.0
       KERBY_KDC_TCP_PORT: "88"
       KERBY_KDC_UDP_PORT: "88"

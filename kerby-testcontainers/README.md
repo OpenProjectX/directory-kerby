@@ -57,6 +57,11 @@ try (KerbyKdcContainer kdc = new KerbyKdcContainer()
 }
 ```
 
+The container waits for the image readiness log. The image now emits that log
+only after requested service keytabs exist and `/var/lib/kerby/ready` has been
+written, so a failed Kerby admin bootstrap fails container startup instead of
+appearing ready.
+
 `withServicePrincipals(...)` adds service principals and exports a keytab for
 each principal under `/var/lib/kerby/keytabs`. Use
 `copyServiceKeytabTo(principal, targetPath)` to copy one of those generated
@@ -69,7 +74,12 @@ The container supports these environment variables:
 `KERBY_REALM`, `KERBY_KDC_HOST`, `KERBY_KDC_BIND_HOST`,
 `KERBY_KDC_TCP_PORT`, `KERBY_KDC_UDP_PORT`, `KERBY_CLIENT_PRINCIPAL`,
 `KERBY_CLIENT_PASSWORD`, `KERBY_SERVICE_PRINCIPAL`, `KERBY_SERVICE_KEYTAB`,
-`KERBY_EXTRA_PRINCIPALS`, and `KERBY_EXTRA_SERVICE_PRINCIPALS`.
+`KERBY_EXTRA_PRINCIPALS`, `KERBY_EXTRA_SERVICE_PRINCIPALS`, and
+`KERBY_READY_FILE`.
+
+`KERBY_KDC_HOST` defaults to `127.0.0.1` for KDC-internal Kerby Java bootstrap.
+Use `KERBY_CLIENT_KDC_HOST` when the generated client `krb5.conf` should point
+at a Docker network alias or another host name.
 
 `KERBY_EXTRA_PRINCIPALS` is a comma-separated list of `principal:password`
 entries. `KERBY_EXTRA_SERVICE_PRINCIPALS` is a comma-separated list of

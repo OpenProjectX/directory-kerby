@@ -104,9 +104,17 @@ public class KerbyKdcContainerE2ETest {
 
             Path serviceKeytab = testDir.resolve("service.keytab");
             Path hiveKeytab = testDir.resolve("hive.keytab");
+            Path kafkaKeytab = testDir.resolve("kafka.keytab");
+            Path readyFile = testDir.resolve("ready");
             Path ticketCache = testDir.resolve("alice.ccache");
+            kdc.copyFileFromContainer(kdc.getReadyFile(), readyFile.toAbsolutePath().toString());
             kdc.copyServiceKeytabTo(serviceKeytab);
             kdc.copyServiceKeytabTo(HIVE_SERVICE, hiveKeytab);
+            kdc.copyServiceKeytabTo(KAFKA_SERVICE, kafkaKeytab);
+            assertThat(readyFile).exists().isNotEmptyFile();
+            assertThat(serviceKeytab).exists().isNotEmptyFile();
+            assertThat(hiveKeytab).exists().isNotEmptyFile();
+            assertThat(kafkaKeytab).exists().isNotEmptyFile();
 
             KrbClient client = createKerbyClient(kdc);
             TgtTicket tgt = client.requestTgt(kdc.getClientPrincipal(), kdc.getClientPassword());

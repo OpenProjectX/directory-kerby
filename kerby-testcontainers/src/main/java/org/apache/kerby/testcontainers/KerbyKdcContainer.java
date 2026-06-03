@@ -40,6 +40,7 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
     public static final String DEFAULT_SERVICE_PRINCIPAL = "HTTP/localhost";
     public static final String DEFAULT_KEYTAB_DIR = "/var/lib/kerby/keytabs";
     public static final String DEFAULT_SERVICE_KEYTAB = "/var/lib/kerby/keytabs/service.keytab";
+    public static final String DEFAULT_READY_FILE = "/var/lib/kerby/ready";
 
     private String realm = DEFAULT_REALM;
     private String clientPrincipal = DEFAULT_CLIENT_PRINCIPAL;
@@ -152,6 +153,10 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
         return defaultKeytabPath(principal);
     }
 
+    public String getReadyFile() {
+        return DEFAULT_READY_FILE;
+    }
+
     public void copyServiceKeytabTo(Path target) {
         copyFileFromContainer(serviceKeytab, target.toAbsolutePath().toString());
     }
@@ -183,7 +188,7 @@ public class KerbyKdcContainer extends GenericContainer<KerbyKdcContainer> {
 
     private KerbyKdcContainer applyConfiguration() {
         withEnv("KERBY_REALM", realm);
-        withEnv("KERBY_KDC_HOST", "localhost");
+        withEnv("KERBY_KDC_HOST", "127.0.0.1");
         withEnv("KERBY_KDC_TCP_PORT", Integer.toString(KDC_PORT));
         withEnv("KERBY_CLIENT_PRINCIPAL", clientPrincipal);
         withEnv("KERBY_CLIENT_PASSWORD", clientPassword);

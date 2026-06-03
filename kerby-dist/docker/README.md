@@ -58,6 +58,17 @@ The KDC also generates a client Kerberos config in the same volume:
 /var/lib/kerby/client/krb5.conf
 ```
 
+After all configured principals and keytabs have been provisioned, the KDC
+writes a readiness marker:
+
+```text
+/var/lib/kerby/ready
+```
+
+The container prints `Kerby KDC container ready.` only after this marker is
+written. If any requested service keytab is missing or empty, startup fails
+before the ready log is emitted.
+
 Other containers can mount the `kerby-data` volume read-only and use that file
 as `KRB5_CONFIG`. The Compose example includes a MIT krb5 client container:
 
@@ -92,11 +103,28 @@ KERBY_SERVICE_KEYTAB=/var/lib/kerby/keytabs/http-api.keytab
 The shared client config is generated from:
 
 ```text
+KERBY_KDC_HOST=127.0.0.1
 KERBY_CLIENT_KDC_HOST=kerby-kdc
 KERBY_CLIENT_KDC_PORT=88
 KERBY_CLIENT_DOMAIN=example.com
 KERBY_CLIENT_CONF_DIR=/var/lib/kerby/client
+KERBY_READY_FILE=/var/lib/kerby/ready
 ```
+
+`KERBY_KDC_HOST` is used by Kerby Java processes inside the KDC container.
+Keep it as loopback unless you have a reason to bootstrap the KDC through
+another address. `KERBY_CLIENT_KDC_HOST` is written into the generated client
+`krb5.conf` and should be the hostname clients use, such as the Docker Compose
+service name `kerby-kdc` or a published host name.
+
+The image automatically adds its generated config to `JAVA_TOOL_OPTIONS` as:
+
+```text
+-Djava.security.krb5.conf=/opt/kerby/conf/krb5.conf
+```
+
+This makes `kdcinit`, `KerbyKdcServer`, and `KadminTool` use the same generated
+realm configuration during container startup.
 
 The Compose example also disables KDC preauthentication for MIT krb5 client
 interoperability in local development:
@@ -122,6 +150,10 @@ comma-separated list of `principal:/container/keytab/path` entries:
 ```text
 KERBY_EXTRA_SERVICE_PRINCIPALS=hive/hiveserver2.example.com@EXAMPLE.COM:/var/lib/kerby/keytabs/hive.keytab,kafka/broker1.example.com@EXAMPLE.COM:/var/lib/kerby/keytabs/kafka.keytab
 ```
+
+Every configured service principal must produce a non-empty keytab. If Kerby
+admin returns without creating the keytab, the entrypoint exits with an error
+that lists the missing files.
 
 ## MIT krb5 Client Usage
 

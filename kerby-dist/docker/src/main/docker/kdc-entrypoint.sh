@@ -28,7 +28,7 @@ KERBY_CLIENT_CONF_DIR="${KERBY_CLIENT_CONF_DIR:-${KERBY_DATA_DIR}/client}"
 
 KERBY_REALM="${KERBY_REALM:-EXAMPLE.COM}"
 KERBY_KDC_BIND_HOST="${KERBY_KDC_BIND_HOST:-0.0.0.0}"
-KERBY_KDC_HOST="${KERBY_KDC_HOST:-localhost}"
+KERBY_KDC_HOST="${KERBY_KDC_HOST:-127.0.0.1}"
 KERBY_KDC_TCP_PORT="${KERBY_KDC_TCP_PORT:-88}"
 KERBY_KDC_UDP_PORT="${KERBY_KDC_UDP_PORT:-88}"
 KERBY_CLIENT_KDC_HOST="${KERBY_CLIENT_KDC_HOST:-${KERBY_KDC_HOST}}"
@@ -43,8 +43,10 @@ KERBY_CLIENT_PRINCIPAL="${KERBY_CLIENT_PRINCIPAL:-client}"
 KERBY_CLIENT_PASSWORD="${KERBY_CLIENT_PASSWORD:-client}"
 KERBY_SERVICE_PRINCIPAL="${KERBY_SERVICE_PRINCIPAL:-HTTP/localhost}"
 KERBY_SERVICE_KEYTAB="${KERBY_SERVICE_KEYTAB:-${KERBY_KEYTAB_DIR}/service.keytab}"
+KERBY_READY_FILE="${KERBY_READY_FILE:-${KERBY_DATA_DIR}/ready}"
 
 CLASSPATH="${KERBY_HOME}/lib/*:${KERBY_HOME}"
+REQUIRED_KEYTABS=""
 
 mkdir -p "${KERBY_CONF_DIR}" "${KERBY_DATA_DIR}" "${KERBY_WORK_DIR}" \
   "${KERBY_KEYTAB_DIR}" "${KERBY_BACKEND_DIR}" "${KERBY_CLIENT_CONF_DIR}"
@@ -104,6 +106,15 @@ protocol = ${KERBY_ADMIN_PROTOCOL}
 server_name = ${KERBY_ADMIN_HOST}
 EOF
 
+append_java_tool_option() {
+  option="$1"
+  case " ${JAVA_TOOL_OPTIONS:-} " in
+    *" ${option} "*) ;;
+    *) JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+${JAVA_TOOL_OPTIONS} }${option}" ;;
+  esac
+  export JAVA_TOOL_OPTIONS
+}
+
 normalize_principal() {
   case "$1" in
     *@*) printf '%s' "$1" ;;
@@ -118,6 +129,24 @@ kadmin_query() {
     "${KERBY_CONF_DIR}" -k "${KERBY_KEYTAB_DIR}/admin.keytab" -q "$1"
 }
 
+remember_keytab() {
+  REQUIRED_KEYTABS="${REQUIRED_KEYTABS}${REQUIRED_KEYTABS:+ }$1"
+}
+
+require_keytabs() {
+  missing=""
+  for keytab_file in ${REQUIRED_KEYTABS}; do
+    if [ ! -s "${keytab_file}" ]; then
+      missing="${missing}${missing:+ }${keytab_file}"
+    fi
+  done
+
+  if [ -n "${missing}" ]; then
+    echo "Kerby KDC did not generate expected keytab files: ${missing}" >&2
+    return 1
+  fi
+}
+
 add_password_principal() {
   principal="$(normalize_principal "$1")"
   password="$2"
@@ -129,6 +158,7 @@ add_service_principal() {
   keytab_file="$2"
   kadmin_query "addprinc -randkey ${principal}"
   kadmin_query "ktadd -k ${keytab_file} ${principal}"
+  remember_keytab "${keytab_file}"
 }
 
 wait_for_kdc() {
@@ -142,6 +172,8 @@ wait_for_kdc() {
   echo "Timed out waiting for KDC on port ${KERBY_KDC_TCP_PORT}" >&2
   return 1
 }
+
+append_java_tool_option "-Djava.security.krb5.conf=${KERBY_CONF_DIR}/krb5.conf"
 
 if [ ! -f "${KERBY_KEYTAB_DIR}/admin.keytab" ]; then
   java -cp "${CLASSPATH}" \
@@ -193,5 +225,7 @@ if [ -n "${KERBY_EXTRA_SERVICE_PRINCIPALS:-}" ]; then
   IFS="${OLD_IFS}"
 fi
 
+require_keytabs
+printf 'ready realm=%s\n' "${KERBY_REALM}" > "${KERBY_READY_FILE}"
 echo "Kerby KDC container ready."
 wait "${KDC_PID}"
