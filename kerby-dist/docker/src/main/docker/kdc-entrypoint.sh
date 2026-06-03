@@ -161,6 +161,17 @@ dump_debug_configuration() {
   dump_file "adminServer.conf" "${KERBY_CONF_DIR}/adminServer.conf"
 }
 
+write_debug_log4j_config() {
+  cat > "${KERBY_HOME}/log4j-debug.properties" <<'EOF'
+log4j.rootLogger=DEBUG,STDOUT
+
+log4j.appender.STDOUT=org.apache.log4j.ConsoleAppender
+log4j.appender.STDOUT.Target=System.out
+log4j.appender.STDOUT.layout=org.apache.log4j.PatternLayout
+log4j.appender.STDOUT.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss.SSS} %-5p [%t] %c - %m%n
+EOF
+}
+
 normalize_principal() {
   case "$1" in
     *@*) printf '%s' "$1" ;;
@@ -261,6 +272,7 @@ wait_for_kdc() {
 
 append_java_tool_option "-Djava.security.krb5.conf=${KERBY_CONF_DIR}/krb5.conf"
 if debug_enabled; then
+  write_debug_log4j_config
   append_java_tool_option "-Dlog4j.configuration=file:${KERBY_HOME}/log4j-debug.properties"
   append_java_tool_option "-Dsun.security.krb5.debug=true"
   append_java_tool_option "-Dsun.security.spnego.debug=true"

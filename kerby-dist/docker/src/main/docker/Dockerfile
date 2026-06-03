@@ -19,7 +19,6 @@ FROM eclipse-temurin:8-jre
 WORKDIR /opt/kerby
 COPY kerby/ /opt/kerby/
 COPY kdc-entrypoint.sh /opt/kerby/bin/kdc-entrypoint.sh
-COPY log4j-debug.properties /opt/kerby/log4j-debug.properties
 RUN chmod +x /opt/kerby/bin/*.sh \
     && mkdir -p /var/lib/kerby /var/run/kerby
 
