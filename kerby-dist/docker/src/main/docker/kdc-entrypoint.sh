@@ -208,6 +208,9 @@ kadmin_query() {
   done
 
   cat "${output_file}" >&2
+  if debug_enabled; then
+    dump_file "server krb5.conf after failed kadmin query" "${KERBY_CONF_DIR}/krb5.conf" >&2
+  fi
   echo "Timed out waiting for Kerby KDC admin to accept query '${query}'." >&2
   return 1
 }
